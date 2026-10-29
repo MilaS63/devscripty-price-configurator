@@ -2,7 +2,7 @@
 /**
  * Plugin Name: DevScripty Price Configurator
  * Description: Price configurator ([devscripty_configurator]) and a summary of the selected options on the quote page ([devscripty_quote_summary]). No AJAX/REST requests and no hardcoded domain, so it moves from staging to production without changes.
- * Version: 1.2.1
+ * Version: 1.2.2
  * Author: DevScripty
  * License: GPL-2.0-or-later
  * Text Domain: dspc
@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'DSPC_VERSION', '1.2.1' );
+define( 'DSPC_VERSION', '1.2.2' );
 define( 'DSPC_URL', plugin_dir_url( __FILE__ ) );
 
 /* Quote page URL. No hardcoded domain: home_url() returns the staging or live address automatically. */
@@ -42,6 +42,7 @@ function dspc_defaults() {
 		'note'          => 'Includes direct developer communication, clean responsive code, basic SEO configuration, and 30 days post-launch technical warranty.',
 		'features'      => "100% Transparent Pricing — No hidden fees\nMilestone payments available",
 		'load_fonts'    => 1,
+		'load_fa'       => 0,
 		'platforms'     => "WordPress*|900|wordpress\nShopify|1100|shopify\nLanding Page|600|rocket\nGoHighLevel|850|network",
 		'addons'        => "Custom UI/UX Design|350|Bespoke tailored mockups\nE-commerce / Cart setup|400|Payment gateways & products\nSpeed Optimization (90+)|250|Core Vitals tuning\nGHL / CRM Automation|300|Workflows & email sequences",
 		'speeds'        => "Express (1 Week)|300|Express (1 Wk)\nStandard (2 - 3 Weeks)*|0|Standard (2-3 Wks)\nRelaxed (4+ Weeks)|-100|Relaxed (4+ Wks)",
@@ -123,18 +124,23 @@ function dspc_icon( $key, $label = '' ) {
 			$key = 'code';
 		}
 	}
+
+	// Font Awesome icons. Font Awesome must be loaded on the site,
+	// or enable "Load Font Awesome" in the plugin settings.
 	$icons = array(
-		'wordpress' => '<circle cx="12" cy="12" r="9.5"/><path d="M6.5 8.5L9.5 16.5 12 10l2.5 6.5 3-8"/>',
-		'shopify'   => '<path d="M6 8h12l1 12H5L6 8z"/><path d="M9 8V7a3 3 0 0 1 6 0v1"/><path d="M14.5 11.5c-.6-.6-3.4-.9-3.4.8 0 1.8 3.4 1 3.4 2.9 0 1.6-3 1.5-3.7.6"/>',
-		'rocket'    => '<path d="M12 3c3 2 5 5 5 9l-2 3H9l-2-3c0-4 2-7 5-9z"/><circle cx="12" cy="10" r="1.6"/><path d="M9 15l-2.5 3.5M15 15l2.5 3.5M12 15v4"/>',
-		'network'   => '<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v2.5h12V9M12 11.5V15"/>',
-		'code'      => '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14"/>',
-		'star'      => '<path d="M12 3l2.7 5.7 6.3.8-4.6 4.3 1.2 6.2L12 17l-5.6 3 1.2-6.2L3 9.5l6.3-.8z"/>',
+		'wordpress' => '<i class="fa-brands fa-wordpress"></i>',
+		'shopify'   => '<i class="fa-brands fa-shopify"></i>',
+		'rocket'    => '<i class="fa-solid fa-rocket"></i>',
+		'network'   => '<i class="fa-solid fa-diagram-project"></i>',
+		'code'      => '<i class="fa-solid fa-code"></i>',
+		'star'      => '<i class="fa-solid fa-star"></i>',
 	);
+
 	if ( ! isset( $icons[ $key ] ) ) {
 		$key = 'code';
 	}
-	return '<svg class="dsp-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $icons[ $key ] . '</svg>';
+
+	return '<span class="dsp-icon" aria-hidden="true">' . $icons[ $key ] . '</span>';
 }
 
 /* ------------------------------------------------------------------
@@ -144,12 +150,16 @@ add_action( 'wp_enqueue_scripts', function () {
 	wp_register_style( 'dspc', DSPC_URL . 'assets/css/configurator.css', array(), DSPC_VERSION );
 	wp_register_script( 'dspc', DSPC_URL . 'assets/js/configurator.js', array(), DSPC_VERSION, true );
 	wp_register_script( 'dspc-prefill', DSPC_URL . 'assets/js/prefill.js', array(), DSPC_VERSION, true );
+	wp_register_style( 'dspc-fa', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css', array(), '6.4.0' );
 	wp_register_style( 'dspc-fonts', 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap', array(), null );
 } );
 
 function dspc_enqueue_style() {
 	if ( (int) dspc_get( 'load_fonts' ) ) {
 		wp_enqueue_style( 'dspc-fonts' );
+	}
+	if ( (int) dspc_get( 'load_fa' ) ) {
+		wp_enqueue_style( 'dspc-fa' );
 	}
 	wp_enqueue_style( 'dspc' );
 }
@@ -408,6 +418,7 @@ function dspc_sanitize( $in ) {
 	$out['low_pct']    = isset( $in['low_pct'] ) ? min( 90, absint( $in['low_pct'] ) ) : 5;
 	$out['high_pct']   = isset( $in['high_pct'] ) ? min( 300, absint( $in['high_pct'] ) ) : 15;
 	$out['load_fonts'] = empty( $in['load_fonts'] ) ? 0 : 1;
+	$out['load_fa']    = empty( $in['load_fa'] ) ? 0 : 1;
 	foreach ( array( 'note', 'features', 'platforms', 'addons', 'speeds' ) as $k ) {
 		$out[ $k ] = isset( $in[ $k ] ) ? sanitize_textarea_field( $in[ $k ] ) : '';
 	}
@@ -440,6 +451,7 @@ function dspc_settings_page() {
 					<p class="description">One line = one item.</p></td></tr>
 				<tr><th>Button text</th><td><input type="text" class="regular-text" name="dspc_options[cta_text]" value="<?php echo $f( 'cta_text' ); ?>"></td></tr>
 				<tr><th>Fonts</th><td><label><input type="checkbox" name="dspc_options[load_fonts]" value="1" <?php checked( (int) dspc_get( 'load_fonts' ), 1 ); ?>> Load Playfair Display and Plus Jakarta Sans from Google Fonts</label></td></tr>
+				<tr><th>Font Awesome</th><td><label><input type="checkbox" name="dspc_options[load_fa]" value="1" <?php checked( (int) dspc_get( 'load_fa' ), 1 ); ?>> Load Font Awesome 6.4.0 from cdnjs (enable only if your site does not load it already; icons will not show without it)</label></td></tr>
 				<tr><th>Platforms</th><td><textarea class="large-text code" rows="5" name="dspc_options[platforms]"><?php echo esc_textarea( dspc_get( 'platforms' ) ); ?></textarea>
 					<p class="description"><code>Name|Price|Icon</code>. Icons: wordpress, shopify, rocket, network, code, star (empty = picked automatically by name). An asterisk after the name = selected by default.</p></td></tr>
 				<tr><th>Add-ons</th><td><textarea class="large-text code" rows="6" name="dspc_options[addons]"><?php echo esc_textarea( dspc_get( 'addons' ) ); ?></textarea>
